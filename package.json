@@ -12,10 +12,20 @@
   "license": "ISC",
   "description": "",
   "dependencies": {
-    "axios": "^1.7.9"
+    "axios": "^1.7.9",
+    "cheerio": "^1.0.0",
+    "chrome-aws-lambda": "^10.1.0",
+    "cors": "^2.8.5",
+    "express": "^4.21.2",
+    "nodemon": "^3.1.9",
+    "puppeteer": "^24.1.1",
+    "puppeteer-core": "^10.4.0",
+    "puppeteer-extra": "^3.3.6",
+    "puppeteer-extra-plugin-stealth": "^2.11.2"
   },
   "devDependencies": {
     "esbuild": "^0.24.2",
+    "tsup": "^8.3.6",
     "typescript": "^5.7.3"
   }
 }

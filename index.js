@@ -5,7 +5,6 @@ const cheerio = require('cheerio');
 const cors = require('cors');
 const chromium = require('chrome-aws-lambda');
 const app = express();
-
 // Add stealth plugin
 puppeteer.use(StealthPlugin());
 

@@ -41,7 +41,7 @@ async function getBrowser() {
         });
     }
     return browser;
-}   
+}     
 // Helper function to parse counts with "M" or "K"
 function parseCount(countText) {
     if (!countText) return { value: 0, formatted: '0', raw: '0' }; // Handle empty or null values

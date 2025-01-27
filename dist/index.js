@@ -1,30 +1,22 @@
 // index.js
 var express = require("express");
-var puppeteer = require("puppeteer-extra");
+var puppeteer = require("puppeteer-core");
 var StealthPlugin = require("puppeteer-extra-plugin-stealth");
 var cheerio = require("cheerio");
 var cors = require("cors");
+var chromium = require("@sparticuz/chromium");
 var app = express();
 puppeteer.use(StealthPlugin());
 app.use(cors());
 app.use(express.json());
-var PUPPETEER_OPTIONS = {
-  headless: true,
-  args: [
-    "--no-sandbox",
-    "--disable-setuid-sandbox",
-    "--disable-dev-shm-usage",
-    "--disable-accelerated-2d-canvas",
-    "--disable-gpu",
-    "--window-size=1920,1080"
-  ]
-};
-var browser = null;
 async function getBrowser() {
-  if (!browser) {
-    browser = await puppeteer.launch(PUPPETEER_OPTIONS);
-  }
-  return browser;
+  return puppeteer.launch({
+    args: [...chromium.args, "--hide-scrollbars", "--disable-web-security"],
+    defaultViewport: chromium.defaultViewport,
+    executablePath: await chromium.executablePath(),
+    headless: chromium.headless,
+    ignoreHTTPSErrors: true
+  });
 }
 function parseCount(countText) {
   if (!countText) return { value: 0, formatted: "0", raw: "0" };
@@ -38,29 +30,20 @@ function parseCount(countText) {
   }
   return {
     value,
-    // Numeric value (e.g., 1500000 for 1.5M)
     formatted: countText,
-    // Original formatted string (e.g., "1.5M")
     raw: numericPart
-    // Raw numeric part without suffix (e.g., "1.5")
   };
 }
 async function scrapeWithRetry(url, username, retries = 3) {
-  let page;
+  let browser = null;
+  let page = null;
   try {
-    const browser2 = await getBrowser();
-    page = await browser2.newPage();
+    browser = await getBrowser();
+    page = await browser.newPage();
     await page.setUserAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36");
     await page.setExtraHTTPHeaders({
       "Accept-Language": "en-US,en;q=0.9"
     });
-    if (process.env.PROXY_SERVER) {
-      await page.authenticate({
-        username: process.env.PROXY_USER,
-        password: process.env.PROXY_PASSWORD
-      });
-      await page.goto(`http://${process.env.PROXY_SERVER}`, { timeout: 6e4 });
-    }
     await page.goto(url, {
       waitUntil: "domcontentloaded",
       timeout: 6e4
@@ -86,33 +69,28 @@ async function scrapeWithRetry(url, username, retries = 3) {
       likes: parseCount($('[data-e2e="likes-count"]').text().trim()),
       videoCount: parseCount($('[data-e2e="video-count"]').text().trim())
     };
-    await page.close();
     return profileData;
   } catch (error) {
-    await (page == null ? void 0 : page.close());
     if (retries > 0) {
       console.log(`Retrying (${retries} left) for ${username}`);
       return scrapeWithRetry(url, username, retries - 1);
     }
     throw error;
+  } finally {
+    if (page) await page.close();
+    if (browser) await browser.close();
   }
 }
 async function scrapeVideo(videoUrl, retries = 3) {
-  let page;
+  let browser = null;
+  let page = null;
   try {
-    const browser2 = await getBrowser();
-    page = await browser2.newPage();
+    browser = await getBrowser();
+    page = await browser.newPage();
     await page.setUserAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36");
     await page.setExtraHTTPHeaders({
       "Accept-Language": "en-US,en;q=0.9"
     });
-    if (process.env.PROXY_SERVER) {
-      await page.authenticate({
-        username: process.env.PROXY_USER,
-        password: process.env.PROXY_PASSWORD
-      });
-      await page.goto(`http://${process.env.PROXY_SERVER}`, { timeout: 6e4 });
-    }
     await page.goto(videoUrl, {
       waitUntil: "domcontentloaded",
       timeout: 6e4
@@ -136,15 +114,16 @@ async function scrapeVideo(videoUrl, retries = 3) {
         avatar: $('[data-e2e="browser-avatar"] img').attr("src")
       }
     };
-    await page.close();
     return videoData;
   } catch (error) {
-    await (page == null ? void 0 : page.close());
     if (retries > 0) {
       console.log(`Retrying (${retries} left) for video: ${videoUrl}`);
       return scrapeVideo(videoUrl, retries - 1);
     }
     throw error;
+  } finally {
+    if (page) await page.close();
+    if (browser) await browser.close();
   }
 }
 app.get("/api/profile/:username", async (req, res) => {
@@ -160,8 +139,7 @@ app.get("/api/profile/:username", async (req, res) => {
     console.error("Profile Error:", error.message);
     res.status(500).json({
       success: false,
-      error: error.message.includes("Account not found") ? "Account not found" : "Failed to fetch profile data",
-      errorObject: error || {}
+      error: error.message.includes("Account not found") ? "Account not found" : "Failed to fetch profile data"
     });
   }
 });
@@ -180,18 +158,11 @@ app.get("/api/video", async (req, res) => {
     console.error("Video Error:", error == null ? void 0 : error.message);
     res.status(500).json({
       success: false,
-      error: (error == null ? void 0 : error.message) || "Failed to fetch video data",
-      errorObject: error || {}
+      error: "Failed to fetch video data"
     });
   }
 });
 app.get("/", (req, res) => {
   res.send("TikTok Scraper API");
 });
-var PORT = process.env.PORT || 8e3;
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
-process.on("SIGINT", async () => {
-  console.log("Closing browser...");
-  if (browser) await browser.close();
-  process.exit();
-});
+module.exports = app;

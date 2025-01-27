@@ -1,12 +1,12 @@
 const express = require('express');
-const puppeteer = require('puppeteer-core');
+const puppeteer = require('puppeteer-extra');
 const StealthPlugin = require('puppeteer-extra-plugin-stealth');
 const cheerio = require('cheerio');
 const cors = require('cors');
 const chromium = require('@sparticuz/chromium');
 const app = express();
 
-// Add stealth plugin
+// Add stealth plugin and use defaults 
 puppeteer.use(StealthPlugin());
 
 // Middleware
@@ -205,4 +205,14 @@ app.get('/', (req, res) => {
     res.send('TikTok Scraper API');
 });
 
-module.exports = app;
+// Server setup
+const PORT = process.env.PORT || 8000;
+app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+
+// Cleanup
+process.on('SIGINT', async () => {
+    console.log('Closing browser...');
+    if (browser) await browser.close();
+    process.exit();
+});
+

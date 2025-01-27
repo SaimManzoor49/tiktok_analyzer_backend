@@ -1,6 +1,6 @@
 // index.js
 var express = require("express");
-var puppeteer = require("puppeteer-core");
+var puppeteer = require("puppeteer-extra");
 var StealthPlugin = require("puppeteer-extra-plugin-stealth");
 var cheerio = require("cheerio");
 var cors = require("cors");
@@ -35,11 +35,11 @@ function parseCount(countText) {
   };
 }
 async function scrapeWithRetry(url, username, retries = 3) {
-  let browser = null;
+  let browser2 = null;
   let page = null;
   try {
-    browser = await getBrowser();
-    page = await browser.newPage();
+    browser2 = await getBrowser();
+    page = await browser2.newPage();
     await page.setUserAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36");
     await page.setExtraHTTPHeaders({
       "Accept-Language": "en-US,en;q=0.9"
@@ -78,15 +78,15 @@ async function scrapeWithRetry(url, username, retries = 3) {
     throw error;
   } finally {
     if (page) await page.close();
-    if (browser) await browser.close();
+    if (browser2) await browser2.close();
   }
 }
 async function scrapeVideo(videoUrl, retries = 3) {
-  let browser = null;
+  let browser2 = null;
   let page = null;
   try {
-    browser = await getBrowser();
-    page = await browser.newPage();
+    browser2 = await getBrowser();
+    page = await browser2.newPage();
     await page.setUserAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36");
     await page.setExtraHTTPHeaders({
       "Accept-Language": "en-US,en;q=0.9"
@@ -123,7 +123,7 @@ async function scrapeVideo(videoUrl, retries = 3) {
     throw error;
   } finally {
     if (page) await page.close();
-    if (browser) await browser.close();
+    if (browser2) await browser2.close();
   }
 }
 app.get("/api/profile/:username", async (req, res) => {
@@ -165,4 +165,10 @@ app.get("/api/video", async (req, res) => {
 app.get("/", (req, res) => {
   res.send("TikTok Scraper API");
 });
-module.exports = app;
+var PORT = process.env.PORT || 8e3;
+app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+process.on("SIGINT", async () => {
+  console.log("Closing browser...");
+  if (browser) await browser.close();
+  process.exit();
+});

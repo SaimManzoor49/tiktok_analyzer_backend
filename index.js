@@ -4,10 +4,11 @@ const StealthPlugin = require('puppeteer-extra-plugin-stealth');
 const cheerio = require('cheerio');
 const cors = require('cors');
 const chromium = require('@sparticuz/chromium');
-const app = express();
 
-// Add stealth plugin and use defaults 
+// Initialize stealth plugin
 puppeteer.use(StealthPlugin());
+
+const app = express();
 
 // Middleware
 app.use(cors());
@@ -16,13 +17,24 @@ app.use(express.json());
 // Browser instance management for Vercel
 async function getBrowser() {
     return puppeteer.launch({
-        args: [...chromium.args, '--hide-scrollbars', '--disable-web-security'],
+        args: [
+            ...chromium.args,
+            '--hide-scrollbars',
+            '--disable-web-security',
+            '--no-sandbox',
+            '--disable-setuid-sandbox',
+            '--disable-dev-shm-usage',
+            '--disable-accelerated-2d-canvas',
+            '--disable-gpu',
+            '--lang=en-US,en'
+        ],
         defaultViewport: chromium.defaultViewport,
         executablePath: await chromium.executablePath(),
-        headless: chromium.headless,
+        headless: "new",
         ignoreHTTPSErrors: true,
     });
 }
+
 
 // Helper function to parse counts with "M" or "K"
 function parseCount(countText) {

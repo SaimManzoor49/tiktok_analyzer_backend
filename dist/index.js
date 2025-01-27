@@ -5,16 +5,26 @@ var StealthPlugin = require("puppeteer-extra-plugin-stealth");
 var cheerio = require("cheerio");
 var cors = require("cors");
 var chromium = require("@sparticuz/chromium");
-var app = express();
 puppeteer.use(StealthPlugin());
+var app = express();
 app.use(cors());
 app.use(express.json());
 async function getBrowser() {
   return puppeteer.launch({
-    args: [...chromium.args, "--hide-scrollbars", "--disable-web-security"],
+    args: [
+      ...chromium.args,
+      "--hide-scrollbars",
+      "--disable-web-security",
+      "--no-sandbox",
+      "--disable-setuid-sandbox",
+      "--disable-dev-shm-usage",
+      "--disable-accelerated-2d-canvas",
+      "--disable-gpu",
+      "--lang=en-US,en"
+    ],
     defaultViewport: chromium.defaultViewport,
     executablePath: await chromium.executablePath(),
-    headless: chromium.headless,
+    headless: "new",
     ignoreHTTPSErrors: true
   });
 }

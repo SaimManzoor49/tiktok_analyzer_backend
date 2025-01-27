@@ -14,5 +14,7 @@
   ],
   "env": {
     "NODE_ENV": "production"
-  }
+  },
+  "skipGit": true,
+  "installCommand": "echo 'Skipping npm install and build steps' && exit 0"
 }

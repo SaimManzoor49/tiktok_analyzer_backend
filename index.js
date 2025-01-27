@@ -1,12 +1,8 @@
 const express = require('express');
-const puppeteer = require('puppeteer-extra');
-const StealthPlugin = require('puppeteer-extra-plugin-stealth');
+const puppeteer = require('puppeteer-core');
 const cheerio = require('cheerio');
 const cors = require('cors');
 const chromium = require('@sparticuz/chromium');
-
-// Initialize stealth plugin
-puppeteer.use(StealthPlugin());
 
 const app = express();
 
@@ -19,43 +15,33 @@ async function getBrowser() {
     return puppeteer.launch({
         args: [
             ...chromium.args,
-            '--hide-scrollbars',
-            '--disable-web-security',
             '--no-sandbox',
             '--disable-setuid-sandbox',
             '--disable-dev-shm-usage',
-            '--disable-accelerated-2d-canvas',
             '--disable-gpu',
-            '--lang=en-US,en'
+            '--disable-web-security',
+            '--disable-features=IsolateOrigins,site-per-process',
+            '--blink-settings=imagesEnabled=false'
         ],
-        defaultViewport: chromium.defaultViewport,
+        defaultViewport: {
+            width: 1920,
+            height: 1080
+        },
         executablePath: await chromium.executablePath(),
-        headless: "new",
+        headless: true,
         ignoreHTTPSErrors: true,
     });
 }
 
-
 // Helper function to parse counts with "M" or "K"
 function parseCount(countText) {
     if (!countText) return { value: 0, formatted: '0', raw: '0' };
-
     const suffix = countText.slice(-1);
     const numericPart = countText.replace(/[^0-9.]/g, '');
-
     let value = parseFloat(numericPart);
-
-    if (suffix === 'M') {
-        value *= 1000000;
-    } else if (suffix === 'K') {
-        value *= 1000;
-    }
-
-    return {
-        value: value,
-        formatted: countText,
-        raw: numericPart
-    };
+    if (suffix === 'M') value *= 1000000;
+    else if (suffix === 'K') value *= 1000;
+    return { value, formatted: countText, raw: numericPart };
 }
 
 // Enhanced scraping function with retries
@@ -66,14 +52,22 @@ async function scrapeWithRetry(url, username, retries = 3) {
         browser = await getBrowser();
         page = await browser.newPage();
 
-        await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36');
+        // Set realistic user agent
+        await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36');
+        
+        // Set extra headers
         await page.setExtraHTTPHeaders({
-            'Accept-Language': 'en-US,en;q=0.9'
+            'Accept-Language': 'en-US,en;q=0.9',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
+            'sec-ch-ua': '"Google Chrome";v="119", "Chromium";v="119", "Not?A_Brand";v="24"',
+            'sec-ch-ua-mobile': '?0',
+            'sec-ch-ua-platform': '"Windows"',
+            'Upgrade-Insecure-Requests': '1'
         });
 
         await page.goto(url, {
-            waitUntil: 'domcontentloaded',
-            timeout: 60000
+            waitUntil: 'networkidle0',
+            timeout: 30000
         });
 
         const is404 = await page.evaluate(() =>
@@ -83,7 +77,6 @@ async function scrapeWithRetry(url, username, retries = 3) {
         if (is404) throw new Error('Account not found');
 
         await page.waitForSelector('[data-e2e="user-title"]', { timeout: 15000 });
-
         const content = await page.content();
         const $ = cheerio.load(content);
 
@@ -121,18 +114,23 @@ async function scrapeVideo(videoUrl, retries = 3) {
         browser = await getBrowser();
         page = await browser.newPage();
 
-        await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36');
+        await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36');
+        
         await page.setExtraHTTPHeaders({
-            'Accept-Language': 'en-US,en;q=0.9'
+            'Accept-Language': 'en-US,en;q=0.9',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
+            'sec-ch-ua': '"Google Chrome";v="119", "Chromium";v="119", "Not?A_Brand";v="24"',
+            'sec-ch-ua-mobile': '?0',
+            'sec-ch-ua-platform': '"Windows"',
+            'Upgrade-Insecure-Requests': '1'
         });
 
         await page.goto(videoUrl, {
-            waitUntil: 'domcontentloaded',
-            timeout: 60000
+            waitUntil: 'networkidle0',
+            timeout: 30000
         });
 
         await page.waitForSelector('[data-e2e="like-count"]', { timeout: 15000 });
-
         const content = await page.content();
         const $ = cheerio.load(content);
 
@@ -212,10 +210,10 @@ app.get('/api/video', async (req, res) => {
     }
 });
 
-// Root endpoint
 app.get('/', (req, res) => {
     res.send('TikTok Scraper API');
 });
+
 
 // Server setup
 const PORT = process.env.PORT || 8000;

@@ -1,11 +1,9 @@
 // index.js
 var express = require("express");
-var puppeteer = require("puppeteer-extra");
-var StealthPlugin = require("puppeteer-extra-plugin-stealth");
+var puppeteer = require("puppeteer-core");
 var cheerio = require("cheerio");
 var cors = require("cors");
 var chromium = require("@sparticuz/chromium");
-puppeteer.use(StealthPlugin());
 var app = express();
 app.use(cors());
 app.use(express.json());
@@ -13,18 +11,20 @@ async function getBrowser() {
   return puppeteer.launch({
     args: [
       ...chromium.args,
-      "--hide-scrollbars",
-      "--disable-web-security",
       "--no-sandbox",
       "--disable-setuid-sandbox",
       "--disable-dev-shm-usage",
-      "--disable-accelerated-2d-canvas",
       "--disable-gpu",
-      "--lang=en-US,en"
+      "--disable-web-security",
+      "--disable-features=IsolateOrigins,site-per-process",
+      "--blink-settings=imagesEnabled=false"
     ],
-    defaultViewport: chromium.defaultViewport,
+    defaultViewport: {
+      width: 1920,
+      height: 1080
+    },
     executablePath: await chromium.executablePath(),
-    headless: "new",
+    headless: true,
     ignoreHTTPSErrors: true
   });
 }
@@ -33,16 +33,9 @@ function parseCount(countText) {
   const suffix = countText.slice(-1);
   const numericPart = countText.replace(/[^0-9.]/g, "");
   let value = parseFloat(numericPart);
-  if (suffix === "M") {
-    value *= 1e6;
-  } else if (suffix === "K") {
-    value *= 1e3;
-  }
-  return {
-    value,
-    formatted: countText,
-    raw: numericPart
-  };
+  if (suffix === "M") value *= 1e6;
+  else if (suffix === "K") value *= 1e3;
+  return { value, formatted: countText, raw: numericPart };
 }
 async function scrapeWithRetry(url, username, retries = 3) {
   let browser2 = null;
@@ -50,13 +43,18 @@ async function scrapeWithRetry(url, username, retries = 3) {
   try {
     browser2 = await getBrowser();
     page = await browser2.newPage();
-    await page.setUserAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36");
+    await page.setUserAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36");
     await page.setExtraHTTPHeaders({
-      "Accept-Language": "en-US,en;q=0.9"
+      "Accept-Language": "en-US,en;q=0.9",
+      "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
+      "sec-ch-ua": '"Google Chrome";v="119", "Chromium";v="119", "Not?A_Brand";v="24"',
+      "sec-ch-ua-mobile": "?0",
+      "sec-ch-ua-platform": '"Windows"',
+      "Upgrade-Insecure-Requests": "1"
     });
     await page.goto(url, {
-      waitUntil: "domcontentloaded",
-      timeout: 6e4
+      waitUntil: "networkidle0",
+      timeout: 3e4
     });
     const is404 = await page.evaluate(
       () => {
@@ -97,13 +95,18 @@ async function scrapeVideo(videoUrl, retries = 3) {
   try {
     browser2 = await getBrowser();
     page = await browser2.newPage();
-    await page.setUserAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36");
+    await page.setUserAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36");
     await page.setExtraHTTPHeaders({
-      "Accept-Language": "en-US,en;q=0.9"
+      "Accept-Language": "en-US,en;q=0.9",
+      "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
+      "sec-ch-ua": '"Google Chrome";v="119", "Chromium";v="119", "Not?A_Brand";v="24"',
+      "sec-ch-ua-mobile": "?0",
+      "sec-ch-ua-platform": '"Windows"',
+      "Upgrade-Insecure-Requests": "1"
     });
     await page.goto(videoUrl, {
-      waitUntil: "domcontentloaded",
-      timeout: 6e4
+      waitUntil: "networkidle0",
+      timeout: 3e4
     });
     await page.waitForSelector('[data-e2e="like-count"]', { timeout: 15e3 });
     const content = await page.content();

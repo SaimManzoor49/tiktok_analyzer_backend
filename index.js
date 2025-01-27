@@ -1,8 +1,9 @@
 const express = require('express');
-const puppeteer = require('puppeteer-extra');
+const puppeteer = require('puppeteer-core');
 const StealthPlugin = require('puppeteer-extra-plugin-stealth');
 const cheerio = require('cheerio');
 const cors = require('cors');
+const chromium = require('chrome-aws-lambda');
 const app = express();
 
 // Add stealth plugin
@@ -30,11 +31,17 @@ let browser = null;
 
 async function getBrowser() {
     if (!browser) {
-        browser = await puppeteer.launch(PUPPETEER_OPTIONS);
+        const executablePath = await chromium.executablePath;
+
+        browser = await puppeteer.launch({
+            args: chromium.args,
+            defaultViewport: chromium.defaultViewport,
+            executablePath: executablePath || '/usr/bin/chromium-browser', // Fallback for local environments
+            headless: chromium.headless,
+        });
     }
     return browser;
 }
-
 // Helper function to parse counts with "M" or "K"
 function parseCount(countText) {
     if (!countText) return { value: 0, formatted: '0', raw: '0' }; // Handle empty or null values

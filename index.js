@@ -4,6 +4,10 @@ const cheerio = require('cheerio');
 const cors = require('cors');
 const chromium = require('@sparticuz/chromium');
 
+// Make sure chromium is properly configured for Vercel
+chromium.setHeadlessMode = true;
+chromium.setGraphicsMode = false;
+
 const app = express();
 
 // Middleware
@@ -19,20 +23,22 @@ async function getBrowser() {
             '--disable-setuid-sandbox',
             '--disable-dev-shm-usage',
             '--disable-gpu',
-            '--disable-web-security',
-            '--disable-features=IsolateOrigins,site-per-process',
-            '--blink-settings=imagesEnabled=false'
+            '--no-first-run',
+            '--no-zygote',
+            '--deterministic-fetch',
+            '--disable-features=IsolateOrigins',
+            '--disable-site-isolation-trials',
+            '--single-process'
         ],
         defaultViewport: {
             width: 1920,
             height: 1080
         },
         executablePath: await chromium.executablePath(),
-        headless: true,
+        headless: chromium.headless,
         ignoreHTTPSErrors: true,
     });
 }
-
 // Helper function to parse counts with "M" or "K"
 function parseCount(countText) {
     if (!countText) return { value: 0, formatted: '0', raw: '0' };

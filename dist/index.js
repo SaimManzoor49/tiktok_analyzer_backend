@@ -4,6 +4,8 @@ var puppeteer = require("puppeteer-core");
 var cheerio = require("cheerio");
 var cors = require("cors");
 var chromium = require("@sparticuz/chromium");
+chromium.setHeadlessMode = true;
+chromium.setGraphicsMode = false;
 var app = express();
 app.use(cors());
 app.use(express.json());
@@ -15,16 +17,19 @@ async function getBrowser() {
       "--disable-setuid-sandbox",
       "--disable-dev-shm-usage",
       "--disable-gpu",
-      "--disable-web-security",
-      "--disable-features=IsolateOrigins,site-per-process",
-      "--blink-settings=imagesEnabled=false"
+      "--no-first-run",
+      "--no-zygote",
+      "--deterministic-fetch",
+      "--disable-features=IsolateOrigins",
+      "--disable-site-isolation-trials",
+      "--single-process"
     ],
     defaultViewport: {
       width: 1920,
       height: 1080
     },
     executablePath: await chromium.executablePath(),
-    headless: true,
+    headless: chromium.headless,
     ignoreHTTPSErrors: true
   });
 }
